@@ -9,7 +9,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include "can.h"
-
+#include <libopencm3/stm32/can.h>
+#include "led.h"
 // #include "usbd_cdc_if.h"
 
 const uint8_t version[6] = "V1013\r";
@@ -19,7 +20,36 @@ const uint8_t serial[6] = "NA123\r";
  */
 
 #define BCD2CHR(x) ((((x) & 0xF) < 0xA) ? ('0' + ((x) & 0xF)) : ('7' + ((x) & 0xF)))
+
+#ifdef USE_MACRO
 #define CHR2BCD(x) ((('0' <= (x)) && ((x) <= '9')) ? ((x) - '0') : ((('A' <= (x)) && ((x) <= 'F')) ? (10 + (x) - 'A') : ((('a' <= (x)) && ((x) <= 'f')) ? (10 + (x) - 'a') : 0xFF)))
+#else
+uint8_t CHR2BCD(char ch);
+
+uint8_t CHR2BCD(char ch) {
+    uint8_t bcd = 0;
+
+    // Handle digits 0-9
+    if (ch >= '0' && ch <= '9') {
+        bcd = (ch - '0') & 0x0F; // Extract lower 4 bits
+    }
+    // Handle letters A-F
+    else if (ch >= 'A' && ch <= 'F') {
+        bcd = (ch - 'A' + 10) & 0x0F; // Extract lower 4 bits
+    }
+    // Handle letters a-f
+    else if (ch >= 'a' && ch <= 'f') {
+        bcd = (ch - 'a' + 10) & 0x0F; // Extract lower 4 bits
+    }
+    // Handle invalid input (return 0 or other error code)
+    else {
+        // You can choose to return 0 for invalid input or handle it differently
+        bcd = 0;
+    }
+
+    return bcd;
+}
+#endif /* USE_MACRO */
 
 #define MAX_DLC(l) (((l) < CAN_LEN_MAX) ? (l) : (CAN_DLC_MAX))
 
@@ -135,7 +165,7 @@ static bool decode_message(slcan_message_t *message, const uint8_t *buffer, uint
     // assert(buffer);
     // assert(nbytes);
 
-    (void)memset(message, 0x00, sizeof(slcan_message_t));
+    //(void)memset(message, 0x00, sizeof(slcan_message_t));
 
     /* (1) message flags: XTD and RTR */
     switch (buffer[index++])
@@ -192,15 +222,16 @@ static bool decode_message(slcan_message_t *message, const uint8_t *buffer, uint
         digit = CHR2BCD(buffer[index++]);
         if ((digit != 0xFF) && (index < nbytes))
             message->data[i] = (uint8_t)digit;
-        else
-            return false;
+        else{
+            return false;}
         digit = CHR2BCD(buffer[index++]);
         if (digit != 0xFF)
             message->data[i] = (message->data[i] << 4) | (uint8_t)digit;
-        else
-            return false;
+        else{
+            return false;}
         i++;
     }
+    
     if (index >= nbytes)
         return false;
     /* (5) ignore the rest: CR or time-stamp + CR */
@@ -248,13 +279,15 @@ uint8_t handletiiiildd(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8
 {
     // Handle the 'tiiildd...' command (Transmit standard CAN frame)
 
-    slcan_message_t message;
+    slcan_message_t message = { 0 };
     /* new message received (indication) */
     if (decode_message(&message, inData, *inSize))
     {
         // CAN_SendMessage(message.can_id, message.can_dlc, message.data);
+        can_transmit(CAN1, message.can_id, 0/*ext*/, 0/*rtr*/, message.can_dlc, message.data);
+    } else {
+        //led_toggle(LED_ACT);
     }
-
     return true;
 }
 
@@ -342,6 +375,10 @@ uint8_t handleN(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *out
 
 uint8_t handleZn(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
+    (void)inData;
+    (void)inSize;
+    (void)outData;
+    (void)outSize;
     // Handle the 'Zn' command (Set auto-reply mode)
     return true;
 }

@@ -52,6 +52,7 @@
 #include "board.h"
 #include "slcan.h"
 #include "usb.h"
+#include "can.h"
 // }}}
 
 // {{{ global variables
@@ -106,6 +107,7 @@ int main(void)
     gpio_setup();
 
     usb_init();
+    can_setup(0);
 
     delay_125ms();
     gpio_set(PWR_LED_PORT, PWR_LED_PIN);

@@ -51,6 +51,10 @@
 #define CAN_1M          CAN_1000K
 /** @} */
 
-void slcan_parse(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize);
+#define CAN_OK (uint8_t)'\r'
+#define CAN_ERROR (uint8_t)'\a'
+#define CAN_AUTOPOLL (uint8_t)'z'
+
+void slcan_decode(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize);
 
 #endif /* SLCAN_SLCAN_H_ */

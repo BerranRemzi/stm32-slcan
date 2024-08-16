@@ -26,23 +26,28 @@ const uint8_t serial[6] = "NA123\r";
 #else
 uint8_t CHR2BCD(char ch);
 
-uint8_t CHR2BCD(char ch) {
+uint8_t CHR2BCD(char ch)
+{
     uint8_t bcd = 0;
 
     // Handle digits 0-9
-    if (ch >= '0' && ch <= '9') {
+    if (ch >= '0' && ch <= '9')
+    {
         bcd = (ch - '0') & 0x0F; // Extract lower 4 bits
     }
     // Handle letters A-F
-    else if (ch >= 'A' && ch <= 'F') {
+    else if (ch >= 'A' && ch <= 'F')
+    {
         bcd = (ch - 'A' + 10) & 0x0F; // Extract lower 4 bits
     }
     // Handle letters a-f
-    else if (ch >= 'a' && ch <= 'f') {
+    else if (ch >= 'a' && ch <= 'f')
+    {
         bcd = (ch - 'a' + 10) & 0x0F; // Extract lower 4 bits
     }
     // Handle invalid input (return 0 or other error code)
-    else {
+    else
+    {
         // You can choose to return 0 for invalid input or handle it differently
         bcd = 0;
     }
@@ -148,7 +153,7 @@ static bool encode_message(const slcan_message_t *message, uint8_t *buffer, uint
     {
         buffer[index++] = (uint8_t)BCD2CHR(MAX_DLC(message->can_dlc));
     }
-    buffer[index++] = (uint8_t)'\r';
+    buffer[index++] = (uint8_t)CAN_OK;
     *nbytes = index;
     return true;
 }
@@ -222,16 +227,20 @@ static bool decode_message(slcan_message_t *message, const uint8_t *buffer, uint
         digit = CHR2BCD(buffer[index++]);
         if ((digit != 0xFF) && (index < nbytes))
             message->data[i] = (uint8_t)digit;
-        else{
-            return false;}
+        else
+        {
+            return false;
+        }
         digit = CHR2BCD(buffer[index++]);
         if (digit != 0xFF)
             message->data[i] = (message->data[i] << 4) | (uint8_t)digit;
-        else{
-            return false;}
+        else
+        {
+            return false;
+        }
         i++;
     }
-    
+
     if (index >= nbytes)
         return false;
     /* (5) ignore the rest: CR or time-stamp + CR */
@@ -247,121 +256,126 @@ uint8_t handleSn(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *ou
     // Handle the 'Sn' command (Setup with standard CAN bit-rates where n is 0-8)
     uint8_t digit = CHR2BCD(inData[1]);
     can_setup(digit);
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handlesxxyy(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'sxxyy' command
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleO(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'O' command (Open CAN)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleL(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'L' command (Open CAN in listen-only mode)
     // CAN_Open(CAN_MODE_LOOPBACK);
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleC(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'C' command (Close CAN)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handletiiiildd(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'tiiildd...' command (Transmit standard CAN frame)
 
-    slcan_message_t message = { 0 };
+    slcan_message_t message = {0};
     /* new message received (indication) */
     if (decode_message(&message, inData, *inSize))
     {
         // CAN_SendMessage(message.can_id, message.can_dlc, message.data);
-        can_transmit(CAN1, message.can_id, 0/*ext*/, 0/*rtr*/, message.can_dlc, message.data);
-    } else {
-        //led_toggle(LED_ACT);
+        can_transmit(CAN1, message.can_id, 0 /*ext*/, 0 /*rtr*/, message.can_dlc, message.data);
+        outData[0] = CAN_AUTOPOLL;
+        *outSize = 1;
+        return CAN_OK;
     }
-    return true;
+    else
+    {
+        return CAN_ERROR;
+    }
+    return CAN_OK;
 }
 
 uint8_t handleTiiiiiiiildd(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'Tiiiiiiiildd...' command (Transmit extended CAN frame)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleriiil(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'riiil' command (Request standard CAN frame)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleRiiiiiiiil(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'Riiiiiiiil' command (Request extended CAN frame)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleP(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'P' command (Switch to polling mode)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleA(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'A' command (Switch to auto-send mode)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleF(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'F' command (Read status flags)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleXn(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'Xn' command (Set time-stamp mode)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleWn(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'Wn' command (Set acceptance mask)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleMxxxxxxxx(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'Mxxxxxxxx' command (Set acceptance code)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handlemxxxxxxxx(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'mxxxxxxxx' command (Set acceptance mask)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleUn(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'Un' command (Set baud rate)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleV(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'V' command (Get version number)
     // CDC_Transmit_FS((uint8_t*)version, sizeof(version));
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleN(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
@@ -370,7 +384,7 @@ uint8_t handleN(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *out
     // CDC_Transmit_FS((uint8_t*)serial, sizeof(serial));
     get_dev_unique_id(outData);
     *outSize = 8;
-    return true;
+    return CAN_OK;
 }
 
 uint8_t handleZn(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
@@ -380,23 +394,23 @@ uint8_t handleZn(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *ou
     (void)outData;
     (void)outSize;
     // Handle the 'Zn' command (Set auto-reply mode)
-    return true;
+    return CAN_ERROR;
 }
 
 uint8_t handleQn(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
     // Handle the 'Qn' command (Set flow-control mode)
-    return true;
+    return CAN_ERROR;
 }
-
-CmdLookupEntry cmdLookupTable[] = {
+#define SLCAN_CMD_COUNT 21u
+const CmdLookupEntry cmdLookupTable[SLCAN_CMD_COUNT] = {
+    {'t', handletiiiildd},     // tiiildd...[CR] command handler
+    {'T', handleTiiiiiiiildd}, // Tiiiiiiiildd...[CR] command handler
     {'S', handleSn},           // Sn[CR] command handler
     {'s', handlesxxyy},        // sxxyy[CR] command handler
     {'O', handleO},            // O[CR] command handler
     {'L', handleL},            // L[CR] command handler
     {'C', handleC},            // C[CR] command handler
-    {'t', handletiiiildd},     // tiiildd...[CR] command handler
-    {'T', handleTiiiiiiiildd}, // Tiiiiiiiildd...[CR] command handler
     {'r', handleriiil},        // riiil[CR] command handler
     {'R', handleRiiiiiiiil},   // Riiiiiiiil[CR] command handler
     {'P', handleP},            // P[CR] command handler
@@ -413,25 +427,37 @@ CmdLookupEntry cmdLookupTable[] = {
     {'Q', handleQn},           // Qn[CR] command handler
 };
 
-void slcan_parse(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
+void slcan_decode(uint8_t *inData, uint8_t *inSize, uint8_t *outData, uint8_t *outSize)
 {
-    if (inData[*inSize - 1u] != '\r')
+    if (inData[*inSize - 1u] != CAN_OK)
     {
-        outData[*outSize] = '\r';
+        outData[*outSize] = CAN_OK;
         (*outSize)++;
         return;
     }
     char command = inData[0];
-    int numCommands = sizeof(cmdLookupTable) / sizeof(CmdLookupEntry);
 
-    for (int i = 0; i < numCommands; i++)
+    for (int i = 0; i < SLCAN_CMD_COUNT; i++)
     {
         if (cmdLookupTable[i].cmd == command)
         {
-            cmdLookupTable[i].handler(inData, inSize, outData, outSize);
-            outData[*outSize] = '\r';
+            uint8_t response = cmdLookupTable[i].handler(inData, inSize, outData, outSize);
+            outData[*outSize] = response;
             (*outSize)++;
             return;
         }
     }
+}
+
+void slcan_encode(uint32_t id, uint8_t len, uint8_t *data)
+{
+    slcan_message_t message = {
+        .can_id = id,
+        .can_dlc = len,
+    };
+    memcpy(message.data, data, len);
+    uint8_t buff[64];
+    uint8_t nBytes;
+    encode_message(&message, buff, &nBytes);
+    usb_send(buff, nBytes);
 }

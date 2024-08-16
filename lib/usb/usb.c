@@ -230,7 +230,7 @@ static void cdcacm_data_rx_cb(usbd_device *usbd_dev, uint8_t ep)
 
 	if (len)
 	{
-		slcan_parse(buf, &len, out, &outSize);
+		slcan_decode(buf, &len, out, &outSize);
 		usbd_ep_write_packet(usbd_dev, 0x82, out, outSize);
 	}
 #endif
@@ -319,4 +319,8 @@ void usb_init(void)
 void usb_loop(void)
 {
 	usbd_poll(_usbd_dev);
+}
+
+void usb_send(uint8_t *data, uint8_t size){
+	usbd_ep_write_packet(_usbd_dev, 0x82, data, size);
 }

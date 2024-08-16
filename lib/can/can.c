@@ -26,7 +26,8 @@
 #include <libopencm3/stm32/rcc.h>
 #include "led.h"
 
-struct can_tx_msg {
+struct can_tx_msg
+{
 	uint32_t std_id;
 	uint32_t ext_id;
 	uint8_t ide;
@@ -35,7 +36,8 @@ struct can_tx_msg {
 	uint8_t data[8];
 };
 
-struct can_rx_msg {
+struct can_rx_msg
+{
 	uint32_t std_id;
 	uint32_t ext_id;
 	uint8_t ide;
@@ -50,86 +52,117 @@ struct can_rx_msg can_rx_msg;
 
 static void can_gpio_setup(void)
 {
-        /* Enable Alternate Function clock. */
-	//rcc_periph_clock_enable(RCC_AFIO);
-
 	/* Enable GPIOB clock. */
 	rcc_periph_clock_enable(RCC_GPIOB);
-
-	/* Configure PB4 as GPIO. */
-	//AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_FULL_SWJ_NO_JNTRST;
-
 }
 
 void can_setup(uint8_t i)
 {
-	/* Enable peripheral clocks. */
-	//rcc_periph_clock_enable(RCC_AFIO);
+	// Enable GPIOB clock
 	rcc_periph_clock_enable(RCC_GPIOB);
+
+	// Enable CAN1 clock
 	rcc_periph_clock_enable(RCC_CAN1);
 
-	//AFIO_MAPR |= AFIO_MAPR_CAN1_REMAP_PORTB;
-
-	/* Configure CAN pin: RX (input pull-up). */
-    // Configure PB8 and PB9 for CAN
-    gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO8 | GPIO9);
-    gpio_set_af(GPIOB, GPIO_AF4, GPIO8 | GPIO9);
-
-
-	/* NVIC setup. */
-	nvic_enable_irq(NVIC_CEC_CAN_IRQ);
-	nvic_set_priority(NVIC_CEC_CAN_IRQ, 1);
-
-	/* Reset CAN. */
+	// Reset the can peripheral
 	can_reset(CAN1);
 
-	/* CAN cell init.
-	 * Setting the bitrate to 1MBit. APB1 = 32MHz, 
-	 * prescaler = 2 -> 16MHz time quanta frequency.
-	 * 1tq sync + 9tq bit segment1 (TS1) + 6tq bit segment2 (TS2) = 
-	 * 16time quanto per bit period, therefor 16MHz/16 = 1MHz
-	 */
-	if (can_init(CAN1,
-		     false,           /* TTCM: Time triggered comm mode? */
-		     true,            /* ABOM: Automatic bus-off management? */
-		     false,           /* AWUM: Automatic wakeup mode? */
-		     false,           /* NART: No automatic retransmission? */
-		     false,           /* RFLM: Receive FIFO locked mode? */
-		     false,           /* TXFP: Transmit FIFO priority? */
-		     CAN_BTR_SJW_1TQ,
-		     CAN_BTR_TS1_9TQ,
-		     CAN_BTR_TS2_6TQ,
-		     2,
-		     true,
-		     false))             /* BRP+1: Baud rate prescaler */
-	{
+	// Initialize the can peripheral
+	can_init(
+		CAN1, // The can ID
 
-		/* Die because we failed to initialize. */
-		while (1)
-			__asm__("nop");
-	}
+		// Time Triggered Communication Mode?
+		// http://www.datamicro.ru/download/iCC_07_CANNetwork_with_Time_Trig_Communication.pdf
+		false, // No TTCM
 
-	/* CAN filter 0 init. */
-	can_filter_id_mask_32bit_init(
-				0,     /* Filter ID */
-				0,     /* CAN ID */
-				0,     /* CAN ID mask */
-				0,     /* FIFO assignment (here: FIFO0) */
-				true); /* Enable the filter. */
+		// Automatic bus-off management?
+		// When the bus error counter hits 255, the CAN will automatically
+		// remove itself from the bus. if ABOM is disabled, it won't
+		// reconnect unless told to. If ABOM is enabled, it will recover the
+		// bus after the recovery sequence.
+		true, // Yes ABOM
 
-	/* Enable CAN RX interrupt. */
+		// Automatic wakeup mode?
+		// 0: The Sleep mode is left on software request by clearing the SLEEP
+		// bit of the CAN_MCR register.
+		// 1: The Sleep mode is left automatically by hardware on CAN
+		// message detection.
+		true, // Wake up on message rx
+
+		// No automatic retransmit?
+		// If true, will not automatically attempt to re-transmit messages on
+		// error
+		false, // Do auto-retry
+
+		// Receive FIFO locked mode?
+		// If the FIFO is in locked mode,
+		//  once the FIFO is full NEW messages are discarded
+		// If the FIFO is NOT in locked mode,
+		//  once the FIFO is full OLD messages are discarded
+		false, // Discard older messages over newer
+
+		// Transmit FIFO priority?
+		// This bit controls the transmission order when several mailboxes are
+		// pending at the same time.
+		// 0: Priority driven by the identifier of the message
+		// 1: Priority driven by the request order (chronologically)
+		false, // TX priority based on identifier
+
+		//// Bit timing settings
+		//// Assuming 48MHz base clock, 87.5% sample point, 500 kBit/s data rate
+		//// http://www.bittiming.can-wiki.info/
+		// Resync time quanta jump width
+		CAN_BTR_SJW_1TQ, // 16,
+		// Time segment 1 time quanta width
+		CAN_BTR_TS1_13TQ, // 13,
+		// Time segment 2 time quanta width
+		CAN_BTR_TS2_1TQ, // 2,
+		// Baudrate prescaler
+		6,
+
+		// Loopback mode
+		// If set, CAN can transmit but not receive
+		true,
+
+		// Silent mode
+		// If set, CAN can receive but not transmit
+		false);
+
+	can_filter_id_mask_16bit_init(0,	 /* Filter ID */
+								  0x777, /* CAN ID */
+								  0x7FF, /* CAN ID mask */
+								  0x0,	 /* CAN ID */
+								  0x0,	 /* CAN ID mask */
+								  0,	 /* FIFO assignment (here: FIFO0) */
+								  true);
+	can_filter_id_mask_16bit_init(2,	 /* Filter ID */
+								  0x777, /* CAN ID */
+								  0x7FF, /* CAN ID mask */
+								  0x0,	 /* CAN ID */
+								  0x0,	 /* CAN ID mask */
+								  1,	 /* FIFO assignment (here: FIFO0) */
+								  true);
+	// Enable CAN interrupts for FIFO message pending (FMPIE)
 	can_enable_irq(CAN1, CAN_IER_FMPIE0);
+	nvic_enable_irq(NVIC_CEC_CAN_IRQ);
+
+	// Route the can to the relevant pins
+	const uint16_t pins = GPIO8 | GPIO9;
+	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, pins);
+	gpio_set_af(GPIOB, GPIO_AF4, pins);
 }
 
-void usb_lp_can_rx0_isr(void)
+void cec_can_isr(void)
 {
+	led_toggle(LED_ACT);
+
+	// Handle the CAN interrupt
+
+	// Handle receive interrupt
 	uint32_t id;
 	bool ext, rtr;
-	uint8_t fmi, length, data[8];
+	uint8_t fmi, length, data[64];
 
-	can_receive(CAN1, 0, false, &id, &ext, &rtr, &fmi, &length, data, NULL);
-    
-    led_toggle(LED_ACT);
-
-	can_fifo_release(CAN1, 0);
+	can_receive(CAN1, 0, true, &id, &ext, &rtr, &fmi, &length, data, NULL);
+	slcan_encode(id, length, data);
 }

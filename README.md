@@ -33,21 +33,21 @@ The following commands are supported by the device. Each command is followed by 
 - [ ] O: Open the CAN channel
 - [ ] L: Open the CAN channel in listen-only mode
 - [ ] C: Close the CAN channel
-- [ ] t: Transmit a standard CAN frame
+- [x] t: Transmit a standard CAN frame
 - [ ] T: Transmit an extended CAN frame
 - [ ] r: Transmit a standard remote frame
 - [ ] R: Transmit an extended remote frame
 - [ ] P: Poll the CAN channel status
 - [ ] A: Set the acceptance code
 - [ ] F: Set the acceptance mask
-- [ ] X: Set the CAN channel to a specific mode
-- [ ] W: Set the CAN channel to a specific mode with extended options
-- [ ] M: Set the CAN filter
-- [ ] m: Set the CAN filter with extended options
+- [ ] X: Sets Auto Poll/Send ON/OFF for received frames.
+- [ ] W: Filter mode setting
+- [ ] M: Sets Acceptance Code Register
+- [ ] m: Sets Acceptance Mask Register
 - [ ] U: Set the UART bitrate
 - [ ] V: Get the firmware version
 - [x] N: Get the serial number
-- [ ] Z: Reset the device
+- [ ] Z: Sets Time Stamp ON/OFF for received frames only.
 - [ ] Q: Query the device status
 
 Contributing
